@@ -3,7 +3,7 @@ name: Deploy Manager to Azure App Service
 on:
   push:
     branches:
-      - release/v1.0
+      - release/v10
       - main
   workflow_dispatch:
 
