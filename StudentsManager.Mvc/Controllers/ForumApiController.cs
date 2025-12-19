@@ -33,7 +33,7 @@ namespace StudentsManager.Mvc.Controllers
 
             await _service.SaveQuestionAsync(
                 question,
-                "1eac9820-5e6e-4d10-6e94-08de36f40f78");
+                Guid.Parse("1eac9820-5e6e-4d10-6e94-08de36f40f78"));
 
             return Ok("Question posted successfully");
         }
