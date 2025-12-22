@@ -39,7 +39,7 @@ namespace StudentsManager.Mvc.Controllers
 
             return Ok("Question posted successfully");
         }
+
+        public readonly record struct QuestionInput(string Question);
     }
 }
-
-public readonly record struct QuestionInput(string Question);
