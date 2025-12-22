@@ -7,24 +7,24 @@ namespace StudentsManager.Mvc.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class ForumApiController : ControllerBase
+    public class SlidoController : ControllerBase
     {
         private readonly IForumService _service;
 
-        public ForumApiController(IForumService service)
+        public SlidoController(IForumService service)
         {
             _service = service;
         }
 
-        // GET: api/ForumApi?pageNumber=1
+        // GET: api/Slido?limit=20&skip=0
         [HttpGet]
-        public async Task<IActionResult> GetQuestions([FromQuery] int pageNumber = 1)
+        public async Task<IActionResult> GetQuestions([FromQuery] int limit = 20, int skip = 0)
         {
-            var result = await _service.GetPaginatedListAsync(pageNumber);
+            var result = await _service.GetAsync(limit, skip);
             return Ok(result);
         }
 
-        // POST: api/ForumApi/question
+        // POST: api/Slido/question
         [HttpPost("question")]
         public async Task<IActionResult> PostQuestion([FromBody] string question)
         {
