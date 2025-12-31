@@ -8,50 +8,97 @@ function Header() {
     const { isLoggedIn, logout } = useAuth();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isScrolledDown, setIsScrolledDown] = useState(false);
-    const lastScrollTop = useRef(0);
-    const tickingRef = useRef(false);
+
     const headerRef = useRef(null);
     const menuItemsRef = useRef([]);
     const mobileMenuButtonRef = useRef(null);
 
-    const assignMenuItemRef = useCallback((index) => (el) => {
-        if (el) {
-            menuItemsRef.current[index] = el;
-        }
-    }, []);
+    const assignMenuItemRef = (index) => (el) => {
+        menuItemsRef.current[index] = el;
+    };
 
+    // Combined effect: body scroll lock, GSAP animation, focus & Escape handling for mobile menu
     useEffect(() => {
         const scrollLockClass = 'modal_show';
-        if (isMobileMenuOpen) {
-            document.body.classList.add(scrollLockClass);
-            document.documentElement.classList.add(scrollLockClass);
-        } else {
+
+        if (!isMobileMenuOpen) {
+            // Ensure classes removed when closed
             document.body.classList.remove(scrollLockClass);
             document.documentElement.classList.remove(scrollLockClass);
+            return;
         }
+
+        // Opening: lock scroll
+        document.body.classList.add(scrollLockClass);
+        document.documentElement.classList.add(scrollLockClass);
+
+        // GSAP animation for menu items
+        const scope = headerRef.current || undefined;
+        const ctx = gsap.context(() => {
+            const items = menuItemsRef.current.filter(Boolean);
+            if (items.length > 0) {
+                gsap.fromTo(
+                    items,
+                    { autoAlpha: 0, y: 15 },
+                    {
+                        autoAlpha: 1,
+                        y: 0,
+                        duration: 0.8,
+                        delay: 0.6,
+                        ease: 'power4.out',
+                        stagger: 0.12,
+                    }
+                );
+            }
+        }, scope);
+
+        // Focus first menu item (if any)
+        const first = menuItemsRef.current.find(Boolean);
+        if (first && typeof first.focus === 'function') {
+            first.focus();
+        }
+
+        // Close on Escape
+        const onKeyDown = (e) => {
+            if (e.key === 'Escape' || e.key === 'Esc') {
+                setIsMobileMenuOpen(false);
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+
+        // Cleanup when menu closes or component unmounts
         return () => {
+            ctx.revert();
+            document.removeEventListener('keydown', onKeyDown);
             document.body.classList.remove(scrollLockClass);
             document.documentElement.classList.remove(scrollLockClass);
+
+            // Return focus to the toggle button when menu closes
+            if (mobileMenuButtonRef.current) {
+                mobileMenuButtonRef.current.focus();
+            }
         };
     }, [isMobileMenuOpen]);
 
+    // Scroll detection effect (keeps previous scroll position and ticking state in closure variables)
     useEffect(() => {
         const headerHeightThreshold = 105;
+        let lastScrollTop = 0;
+        let ticking = false;
 
         const handleScroll = () => {
-            if (tickingRef.current) return;
-            tickingRef.current = true;
+            if (ticking) return;
+            ticking = true;
 
             requestAnimationFrame(() => {
                 const scrollTop = window.scrollY || window.pageYOffset || 0;
-
                 if (scrollTop > headerHeightThreshold) {
-                    setIsScrolledDown(scrollTop > lastScrollTop.current);
+                    setIsScrolledDown(scrollTop > lastScrollTop);
                 } else {
                     setIsScrolledDown(false);
                 }
-                lastScrollTop.current = scrollTop;
-                tickingRef.current = false;
+                lastScrollTop = scrollTop;
+                ticking = false;
             });
         };
 
@@ -59,72 +106,18 @@ function Header() {
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
 
-    useEffect(() => {
-        if (!isMobileMenuOpen) return;
-        const scope = headerRef.current || undefined;
-        const ctx = gsap.context(() => {
-            const items = menuItemsRef.current.filter(Boolean);
-            if (items.length === 0) return;
+    const toggleMobileMenu = useCallback(() => setIsMobileMenuOpen((p) => !p), []);
+    const closeMobileMenu = useCallback(() => setIsMobileMenuOpen(false), []);
 
-            gsap.fromTo(
-                items,
-                { autoAlpha: 0, y: 15 },
-                {
-                    autoAlpha: 1,
-                    y: 0,
-                    duration: 0.8,
-                    delay: 0.6,
-                    ease: 'power4.out',
-                    stagger: 0.12,
-                }
-            );
-        }, scope);
+    const handleLogout = useCallback(
+        async () => {
+            await logout();
+            closeMobileMenu();
+        },
+        [logout, closeMobileMenu]
+    );
 
-        return () => ctx.revert();
-    }, [isMobileMenuOpen]);
-
-    useEffect(() => {
-        if (!isMobileMenuOpen) return;
-
-        const first = menuItemsRef.current.find(Boolean);
-        if (first && typeof first.focus === 'function') {
-            first.focus();
-        }
-
-        const onKeyDown = (e) => {
-            if (e.key === 'Escape' || e.key === 'Esc') {
-                setIsMobileMenuOpen(false);
-            }
-        };
-        document.addEventListener('keydown', onKeyDown);
-        return () => {
-            document.removeEventListener('keydown', onKeyDown);
-            if (mobileMenuButtonRef.current) {
-                mobileMenuButtonRef.current.focus();
-            }
-        };
-    }, [isMobileMenuOpen]);
-
-    const toggleMobileMenu = useCallback(() => {
-        setIsMobileMenuOpen((prev) => !prev);
-    }, []);
-
-    const closeMobileMenu = useCallback(() => {
-        setIsMobileMenuOpen(false);
-    }, []);
-
-    const handleLogout = useCallback(async () => {
-        await logout();
-        closeMobileMenu();
-    }, [logout, closeMobileMenu]);
-
-    const headerClassName = [
-        'header',
-        isMobileMenuOpen && 'active-mobile-menu',
-        isScrolledDown && 'down-state',
-    ]
-        .filter(Boolean)
-        .join(' ');
+    const headerClassName = `header${isMobileMenuOpen ? ' active-mobile-menu' : ''}${isScrolledDown ? ' down-state' : ''}`;
 
     return (
         <header ref={headerRef} className={headerClassName}>
@@ -212,5 +205,4 @@ function Header() {
         </header>
     );
 }
-
 export default Header;
